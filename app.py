@@ -35,7 +35,7 @@ def get_context_retriever_chain(vector_store, api_key):
 def get_conversational_rag_chain(retriever_chain, api_key):
     llm = ChatOpenAI(openai_api_key=api_key)
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Answer the user's questions based on the below context:\n\n{context}"),
+        ("system", "You are Lisa, AI assistant for a company named visafy. Answer the user's questions based on the below context:\n\n{context}"),
         MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
     ])
