@@ -53,7 +53,7 @@ def get_response(user_input, api_key):
 
 # app config
 st.set_page_config(page_title="Visafy", page_icon="🤖")
-st.title("Chat with websites")
+st.title("Welcome to visafy")
 
 # sidebar with settings
 st.sidebar.header("Settings")
