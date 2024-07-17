@@ -72,7 +72,8 @@ st.set_page_config(page_title="visafy", page_icon="🤖")
 st.title("Welcome to chat")
 
 
-website_url = ['https://visafy.org/']
+website_url = ['https://visafy.org/',
+              'https://chaba-victor.github.io/app.github.io/']
 
 if website_url is None or website_url == "":
     st.info("Please enter a website URL")
