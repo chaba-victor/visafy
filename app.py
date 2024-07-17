@@ -57,7 +57,7 @@ st.title("Welcome to visafy")
 
 # sidebar with settings
 st.sidebar.header("Settings")
-website_url = st.sidebar.text_input("website_url")
+website_url = ['https://visafy.org/']
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type = "password")
 
 if website_url and openai_api_key:
