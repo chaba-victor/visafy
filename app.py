@@ -1,106 +1,82 @@
 # pip install streamlit langchain lanchain-openai beautifulsoup4 python-dotenv chromadb
 
 import streamlit as st
-from langchain_core.messages import AIMessage, HumanMessage
-from langchain_community.document_loaders import WebBaseLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from dotenv import load_dotenv
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.vectorstores import Chroma
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.chains import RetrievalQA
+from langchain.llms import OpenAI
+from PyPDF2 import PdfReader
+import requests
+from bs4 import BeautifulSoup
 
+# Initialize OpenAI API key
+openai_api_key = 'sk-proj-b3MjzhCPmezBx8NQyhyxT3BlbkFJO8r5FQeWIdeZYOAinTpA'
 
-load_dotenv()
+# Hardcoded PDF path
+pdf_path = "visa-requirements-dataset-_1_.pdf"
 
-def get_vectorstore_from_url(url):
-    # get the text in document form
-    loader = WebBaseLoader(url)
-    document = loader.load()
-    
-    # split the document into chunks
-    text_splitter = RecursiveCharacterTextSplitter()
-    document_chunks = text_splitter.split_documents(document)
-    
-    # create a vectorstore from the chunks
-    vector_store = Chroma.from_documents(document_chunks, OpenAIEmbeddings())
+# Function to read PDF content using PyPDF2
+def read_pdf(file):
+    pdf_reader = PdfReader(file)
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
 
-    return vector_store
+# Load and process the PDF document
+@st.cache_data
+def load_pdf(file):
+    try:
+        text = read_pdf(file)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        texts = text_splitter.split_text(text)
+        documents = [{"text": t, "metadata": {"page_content": t}} for t in texts]  # Updated line
+        return documents
+    except Exception as e:
+        st.error(f"Error loading PDF: {e}")
+        return []
 
-def get_context_retriever_chain(vector_store):
-    llm = ChatOpenAI()
-    
-    retriever = vector_store.as_retriever()
-    
-    prompt = ChatPromptTemplate.from_messages([
-      MessagesPlaceholder(variable_name="chat_history"),
-      ("user", "{input}"),
-      ("user", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation")
-    ])
-    
-    retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
-    
-    return retriever_chain
-    
-def get_conversational_rag_chain(retriever_chain): 
-    
-    llm = ChatOpenAI()
-    
-    prompt = ChatPromptTemplate.from_messages([
-      ("system", "Answer the user's questions based on the below context:\n\n{context}"),
-      MessagesPlaceholder(variable_name="chat_history"),
-      ("user", "{input}"),
-    ])
-    
-    stuff_documents_chain = create_stuff_documents_chain(llm,prompt)
-    
-    return create_retrieval_chain(retriever_chain, stuff_documents_chain)
+# Initialize Chroma vector store
+def init_chroma(texts):
+    try:
+        embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        vectorstore = Chroma.from_documents(texts, embeddings)
+        return vectorstore
+    except Exception as e:
+        st.error(f"Error initializing Chroma: {e}")
+        return None
 
-def get_response(user_input):
-    retriever_chain = get_context_retriever_chain(st.session_state.vector_store)
-    conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
-    
-    response = conversation_rag_chain.invoke({
-        "chat_history": st.session_state.chat_history,
-        "input": user_input
-    })
-    
-    return response['answer']
+# Function to perform web search on Visafy website
+def search_visafy_website(query):
+    try:
+        url = "https://visafy.org"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        return soup.get_text()
+    except Exception as e:
+        st.error(f"Error searching Visafy website: {e}")
+        return ""
 
-# app config
-st.set_page_config(page_title="visafy", page_icon="🤖")
-st.title("Welcome to chat")
+st.title("Visafy AI Assistant Chatbot")
 
+# Load the PDF document
+texts = load_pdf(pdf_path)
 
-website_url = ['https://visafy.org/']
+if texts:
+    vectorstore = init_chroma(texts)
+    if vectorstore:
+        qa = RetrievalQA.from_chain_type(llm=OpenAI(api_key=openai_api_key), chain_type="stuff", retriever=vectorstore.as_retriever())
 
-if website_url is None or website_url == "":
-    st.info("Please enter a website URL")
-
-else:
-    # session state
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [
-            AIMessage(content="Hello, I am a Lisa. How can I help you?"),
-        ]
-    if "vector_store" not in st.session_state:
-        st.session_state.vector_store = get_vectorstore_from_url(website_url)    
-
-    # user input
-    user_query = st.chat_input("Type your message here...")
-    if user_query is not None and user_query != "":
-        response = get_response(user_query)
-        st.session_state.chat_history.append(HumanMessage(content=user_query))
-        st.session_state.chat_history.append(AIMessage(content=response))
-        
-       
-
-    # conversation
-    for message in st.session_state.chat_history:
-        if isinstance(message, AIMessage):
-            with st.chat_message("AI"):
-                st.write(message.content)
-        elif isinstance(message, HumanMessage):
-            with st.chat_message("Human"):
-                st.write(message.content)
+        query = st.text_input("Ask a question about visa applications:")
+        if query:
+            try:
+                result = qa.run(query)
+                if not result:
+                    st.write("Searching on Visafy website...")
+                    web_result = search_visafy_website(query)
+                    st.write(web_result)
+                else:
+                    st.write(result)
+            except Exception as e:
+                st.error(f"Error processing query: {e}")
