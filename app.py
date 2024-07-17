@@ -47,7 +47,7 @@ def get_conversational_rag_chain(retriever_chain):
     llm = ChatOpenAI()
     
     prompt = ChatPromptTemplate.from_messages([
-      ("system", "You are Lisa, an intelligent AI assistant for a company named Visafy that offer Visa application solutions. Answer the user's questions based on the below context:\n\n{context}"),
+      ("system", "You are Lisa, an intelligent AI assistant for a company named Visafy that offer Visa application solutions. You are a part of the Visafy website and can direct users to relevant pages of the website. Answer the user's questions based on the below context:\n\n{context}"),
       MessagesPlaceholder(variable_name="chat_history"),
       ("user", "{input}"),
     ])
