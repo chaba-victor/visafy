@@ -69,7 +69,7 @@ def get_response(user_input):
 
 # app config
 st.set_page_config(page_title="visafy", page_icon="🤖")
-st.title("Welcome to chat")
+st.title("Welcome to Phindor AI")
 
 
 website_url = ['https://visafy.org/',
@@ -82,7 +82,7 @@ else:
     # session state
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            AIMessage(content="Hello, I am a Lisa. How can I help you?"),
+            AIMessage(content="Hello, I am a Lisa Agent. How can I help you?"),
         ]
     if "vector_store" not in st.session_state:
         st.session_state.vector_store = get_vectorstore_from_url(website_url)    
